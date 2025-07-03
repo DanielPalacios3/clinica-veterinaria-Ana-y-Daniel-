@@ -1,38 +1,86 @@
 import streamlit as st
-import requests
+import pandas as pd
 from datetime import datetime
 
-# URL del microservicio FastAPI
-url = "http://fastapi:8000/envio/"
+st.set_page_config(page_title="Citas – Clínica Veterinaria")
 
-st.title("Ejemplo: formulario para dar la entrada de datos 🖥️🖥")
+# Inicializar sesión
+if "appointments" not in st.session_state:
+    st.session_state.appointments = []
+    st.session_state._id_counter = 1
 
-# Crear el formulario
-with st.form("envio"):
-    date = st.date_input("Fecha", datetime.now())
-    description = st.text_input("Descripción")
-    option = st.selectbox("Opción", ["OP1", "OP2", "OP3"])
-    amount = st.number_input("Cantidad Económica", min_value=0.0, step=0.01)
+mode = st.sidebar.selectbox("Modo", ["Crear cita", "Finalizar cita"])
 
-    submit_button = st.form_submit_button(label="Enviar")
+# lista tratamientos
+treatments = [
+    "Análisis: sangre y hormonales", "Vacunación", "Desparasitación",
+    "Revisión general", "Cardiología", "Cutánea", "Broncológica",
+    "Ecografías", "Limpieza bucal", "Extracción dental",
+    "Cirugía – Castración", "Cirugía – Abdominal", "Cirugía – Cardíaca",
+    "Cirugía – Articular y ósea", "Cirugía – Hernias"
+]
 
-if submit_button:
-    date_str = date.strftime("%Y-%m-%d")
+if mode == "Crear cita":
+    st.title("Crear Nueva Cita")
+    with st.form("form_cita"):
+        animal_name = st.text_input("Nombre del animal")
+        owner_name  = st.text_input("Nombre del dueño")
+        treatment   = st.selectbox("Tratamiento", treatments)
+        date        = st.date_input("Fecha", datetime.now())
+        time        = st.time_input("Hora", datetime.now().time())
+        if st.form_submit_button("Crear cita"):
+            appt = {
+                "id":             st.session_state._id_counter,
+                "animal_name":    animal_name,
+                "owner_name":     owner_name,
+                "treatment":      treatment,
+                "date":           date.isoformat(),
+                "time":           time.strftime("%H:%M:%S"),
+                "status":         "pending",
+                "treatments_done": [],
+                "payment_method":  "",
+                "invoice":         {}
+            }
+            st.session_state.appointments.append(appt)
+            st.session_state._id_counter += 1
+            st.success(f"Cita #{appt['id']} creada")
+            st.json(appt)
 
-    # Crear el payload para enviar al microservicio
-    payload = {
-        "date": date_str,
-        "description": description,
-        "option": option,
-        "amount": amount
-    }
-
-    # Enviar los datos al microservicio usando requests
-    response = requests.post(url, json=payload)
-
-    # Mostrar el resultado de la solicitud
-    if response.status_code == 200:
-        st.success("Datos enviados correctamente")
-        st.json(response.json())
+else:
+    st.title("Finalizar Cita y Generar Factura")
+    df = pd.DataFrame(st.session_state.appointments)
+    pendientes = df[df['status'] == 'pending']
+    if pendientes.empty:
+        st.info("No hay citas pendientes.")
     else:
-        st.error("Error al enviar los datos")
+        opciones = pendientes.apply(
+            lambda r: f"{r['id']} | {r['animal_name']} – {r['treatment']} ({r['date']} {r['time']})",
+            axis=1
+        ).tolist()
+        sel = st.selectbox("Selecciona cita", opciones)
+        idx = int(sel.split("|")[0].strip())
+        cita = next(a for a in st.session_state.appointments if a['id']==idx)
+
+        realizados = st.multiselect(
+            "Tratamientos realizados",
+            treatments,
+            default=[cita['treatment']]
+        )
+        pago = st.selectbox("Forma de pago", ["Transferencia","Efectivo","Tarjeta"])
+
+        if st.button("Finalizar cita"):
+            cita['status'] = 'done'
+            cita['treatments_done'] = realizados
+            cita['payment_method']  = pago
+            # generar factura  simple
+            invoice = {
+                "invoice_id": f"INV-{cita['id']:04d}",
+                "owner": cita['owner_name'],
+                "animal": cita['animal_name'],
+                "treatments": realizados,
+                "total": len(realizados)*50.0,
+                "payment_method": pago,
+            }
+            cita['invoice'] = invoice
+            st.success("Cita finalizada y factura:")
+            st.json(invoice)
