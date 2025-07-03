@@ -1,15 +1,13 @@
-
 import streamlit as st
 from streamlit_calendar import calendar
 
 # Inicializar sesión
 if "appointments" not in st.session_state:
     st.session_state.appointments = []
-    st.session_state._id_counter = 1
+    st.session_state._id_counter  = 1
 
 st.title("Calendario de Citas – Clínica Veterinaria")
 
-# Construir eventos
 events = [
     {
         "id":    a["id"],
@@ -22,9 +20,8 @@ events = [
 
 state = calendar(events=events, key="calendar")
 
-# Capturar arrastre
 if state.get("eventChange", {}).get("event"):
     ev = state["eventChange"]["event"]
-    appt = next(a for a in st.session_state.appointments if a['id']==ev['id'])
+    appt = next(a for a in st.session_state.appointments if a['id'] == ev['id'])
     appt['date'], appt['time'] = ev["start"].split("T")
-    st.experimental_rerun()  # refrescar vistas  tras actualizar
+    st.experimental_rerun()
