@@ -11,6 +11,7 @@ services:
     container_name: fastapi
     volumes:
       - mis_datos:/var/lib/docker/volumes/aa-streamlit-fastapi_mis_datos/_data
+    command: uvicorn main:app --reload --host 0.0.0.0 --port 8000
   streamlit:
     build: streamlit/
     depends_on:
@@ -27,4 +28,4 @@ networks:
     driver: bridge
     
 volumes:
-   mis_datos:
+   mis_datos:
