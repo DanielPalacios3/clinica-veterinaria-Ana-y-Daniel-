@@ -6,14 +6,15 @@ st.set_page_config(page_title="Dashboard Clínica Veterinaria", layout="wide")
 
 # — Login —
 if "role" not in st.session_state:
-    st.session_state.role = ""
-if st.session_state.role == "":
-    with st.form("login_form"):
-        st.write("Inicia sesión")
-        role = st.selectbox("Elige tu rol", ["Veterinario", "Administrador"])
-        if st.form_submit_button("Iniciar sesión"):
-            st.session_state.role = role
-    st.stop()
+    st.session_state.role = "Veterinario"  # valor por defecto
+
+st.sidebar.selectbox(
+    "Elige tu rol",
+    ["Veterinario", "Administrador"],
+    index=0 if st.session_state.role == "Veterinario" else 1,
+    key="role"
+)
+
 
 # — Sidebar —
 st.sidebar.write(f"Rol: {st.session_state.role}")
